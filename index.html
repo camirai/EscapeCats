@@ -264,17 +264,19 @@ let cellW=0,cellH=0,mazeOffX=0,mazeOffY=0;
 let particles=[];
 
 const mazes=[
-  // Level 1: La Cocina (9x9)
+  // Level 1: La Cocina (11x11) — más laberíntico
   [
-    "WWWWWWWWW",
-    "WS..W...W",
-    "W.W.W.W.W",
-    "W.W...W.W",
-    "W.WWW.W.W",
-    "W.....W.W",
-    "W.WWWWW.W",
-    "W......EW",
-    "WWWWWWWWW"
+    "WWWWWWWWWWW",
+    "WS....W...W",
+    "WWW.W.W.W.W",
+    "W...W...W.W",
+    "W.WWWWW.W.W",
+    "W.....W.W.W",
+    "W.WWW.W.W.W",
+    "W.W...W...W",
+    "W.W.WWWWW.W",
+    "W........EW",
+    "WWWWWWWWWWW"
   ],
   // Level 2: El Living (11x11)
   [
@@ -311,8 +313,8 @@ const mazes=[
 const levels=[
   {
     name:"La Cocina",emoji:"🐈",cat:"🐈",
-    desc:"Pispo escucha la palabra \"veterinario\" y decide actuar. Guialo hasta el sillón antes de que lo atrapen.",
-    time:30,
+    desc:"Pispo escucha la palabra \"veterinario\" y decide actuar. La cocina tiene más vueltas de las que recordaba: guialo hasta el sillón antes de que lo atrapen.",
+    time:25,
     wallColor:"#d4a373",floorColor:"#fefae0",goalEmoji:"🛋️",
     bgTop:"#fefae0",bgBot:"#d4a373",
     fact:"Pispo se escondió detrás del sillón. Técnica clásica de gato manipulador: hacerse invisible y aparecer solo cuando hay comida."
@@ -423,6 +425,12 @@ function updateJoy(cx,cy){
   if(dist>maxR){dx=dx/dist*maxR;dy=dy/dist*maxR}
   controlX=Math.max(-1,Math.min(1,dx/maxR));
   controlY=Math.max(-1,Math.min(1,dy/maxR));
+
+  // Pequeña zona muerta para evitar micro-movimientos que hacían que
+  // el gato pareciera trabarse al rozar una pared.
+  if(Math.abs(controlX)<.12)controlX=0;
+  if(Math.abs(controlY)<.12)controlY=0;
+
   knob.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;
 }
 joystick.addEventListener("pointerdown",e=>{joyPtrId=e.pointerId;joystick.setPointerCapture(e.pointerId);updateJoy(e.clientX,e.clientY);e.preventDefault()});
@@ -440,6 +448,29 @@ function isWall(col,row){
   return m[row][col]==="W";
 }
 
+// Colisión más suave: el gato se trata como un círculo pequeño.
+// Así puede rozar una pared y seguir deslizándose por ella sin quedar enganchado.
+function hitsWall(x,y,radius=.20){
+  const minC=Math.floor(x-radius);
+  const maxC=Math.floor(x+radius);
+  const minR=Math.floor(y-radius);
+  const maxR=Math.floor(y+radius);
+
+  for(let r=minR;r<=maxR;r++){
+    for(let c=minC;c<=maxC;c++){
+      if(!isWall(c,r))continue;
+
+      const nearestX=Math.max(c,Math.min(x,c+1));
+      const nearestY=Math.max(r,Math.min(y,r+1));
+      const dx=x-nearestX;
+      const dy=y-nearestY;
+
+      if(dx*dx+dy*dy < radius*radius)return true;
+    }
+  }
+  return false;
+}
+
 function loop(ts){
   const dt=Math.min((ts-lastTs)/1000,.035);lastTs=ts;
   if(playing)update(dt);
@@ -452,23 +483,36 @@ function update(dt){
   if(timeLeft<=0){timeLeft=0;updateTimer();loseLife();return}
   updateTimer();
 
-  const speed=4.5;
-  let nx=cat.x+controlX*speed*dt;
-  let ny=cat.y+controlY*speed*dt;
+  const speed=currentLevel===0?4.35:4.5;
+  const dx=controlX*speed*dt;
+  const dy=controlY*speed*dt;
 
-  // Collision: check target cell for X movement
-  const checkCol=controlX>0?Math.floor(nx+.35):Math.floor(nx-.35+1);
-  const curRow=Math.floor(cat.y);
-  if(!isWall(checkCol<0?0:checkCol,curRow))cat.x=nx;
+  // Movimiento por ejes independientes:
+  // si choca horizontalmente, todavía puede seguir verticalmente, y viceversa.
+  // Esto evita que quede "pegado" en esquinas o paredes.
+  if(dx!==0){
+    const nx=cat.x+dx;
+    if(!hitsWall(nx,cat.y))cat.x=nx;
+  }
 
-  // Collision: check target cell for Y movement
-  const checkRow=controlY>0?Math.floor(ny+.35):Math.floor(ny-.35+1);
-  const curCol=Math.floor(cat.x);
-  if(!isWall(curCol,checkRow<0?0:checkRow))cat.y=ny;
+  if(dy!==0){
+    const ny=cat.y+dy;
+    if(!hitsWall(cat.x,ny))cat.y=ny;
+  }
 
-  // Clamp
-  cat.x=Math.max(.4,Math.min(mazes[currentLevel][0].length-.6,cat.x));
-  cat.y=Math.max(.4,Math.min(mazes[currentLevel].length-.6,cat.y));
+  // Si queda apenas demasiado cerca de una pared, lo recentramos suavemente
+  // dentro de la celda transitable actual.
+  const cc=Math.floor(cat.x);
+  const rr=Math.floor(cat.y);
+  if(!isWall(cc,rr)){
+    const pad=.22;
+    cat.x=Math.max(cc+pad,Math.min(cc+1-pad,cat.x));
+    cat.y=Math.max(rr+pad,Math.min(rr+1-pad,cat.y));
+  }
+
+  // Clamp general
+  cat.x=Math.max(.22,Math.min(mazes[currentLevel][0].length-.22,cat.x));
+  cat.y=Math.max(.22,Math.min(mazes[currentLevel].length-.22,cat.y));
 
   // Collect Ardi
   if(ardiX>=0&&!ardiCollected&&Math.abs(cat.x-ardiX)<.6&&Math.abs(cat.y-ardiY)<.6){
