@@ -1,3 +1,4 @@
+```
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -315,35 +316,44 @@ const mazes=[
     "W.............W",
     "WWWWWWWWWWWWWWW"
   ],
-  // Level 2: El Living (11x11)
+  // Level 2: El Living (15x15) — más recovecos + desvío obligatorio por Ardi
   [
-    "WWWWWWWWWWW",
-    "WS..W.....W",
-    "W.W.W.WWW.W",
-    "W.W.W...W.W",
-    "W.W.WWW.W.W",
-    "W.W.A...W.W",
-    "W.WWWWW.W.W",
-    "W.......W.W",
-    "W.WWW.WWW.W",
-    "W...W....EW",
-    "WWWWWWWWWWW"
+    "WWWWWWWWWWWWWWW",
+    "WS............W",
+    "WWWWWWWWWWWWW.W",
+    "W.............W",
+    "W.WWWWWWWWWWWWW",
+    "W.W...........W",
+    "W.W.WWWWWWWWW.W",
+    "W.W.W.....A..W.W",
+    "W.W.W.WWWWW.W.W",
+    "W.W.W.W.....W.W",
+    "W.W.W.W.WWWWW.W",
+    "W.W.W.W.......W",
+    "W.W.W.WWWWWWWWW",
+    "W...W.........EW",
+    "WWWWWWWWWWWWWWW"
   ],
-  // Level 3: Toda la Casa (13x13)
+
+  // Level 3: Toda la Casa (17x17) — el más largo, con muchísimos giros
   [
-    "WWWWWWWWWWWWW",
-    "WS..W.......W",
-    "W.W.W.WWWWW.W",
-    "W.W.W.W...W.W",
-    "W.W.W.W.W.W.W",
-    "W.W...W.W...W",
-    "W.WWWWW.WWW.W",
-    "W.......W...W",
-    "W.WWW.WWW.W.W",
-    "W.W...W...W.W",
-    "W.W.WWW.WWW.W",
-    "W..........EW",
-    "WWWWWWWWWWWWW"
+    "WWWWWWWWWWWWWWWWW",
+    "WS..............W",
+    "WWWWWWWWWWWWWWW.W",
+    "W...............W",
+    "W.WWWWWWWWWWWWWWW",
+    "W.W.............W",
+    "W.W.WWWWWWWWWWW.W",
+    "W.W.W...........W",
+    "W.W.W.WWWWWWWWWWW",
+    "W.W.W.W.........W",
+    "W.W.W.W.WWWWWWW.W",
+    "W.W.W.W.W.......W",
+    "W.W.W.W.W.WWWWWWW",
+    "W.W.W.W.W.W.....W",
+    "W.W.W.W.W.W.WWW.W",
+    "W...W...W...W..EW",
+    "WWWWWWWWWWWWWWWWW"
   ]
 ];
 
@@ -359,7 +369,7 @@ const levels=[
   {
     name:"El Living",emoji:"🐈‍⬛",cat:"🐈‍⬛",
     desc:"Chappell sale corriendo como loca. ¡Y no se va sin Ardi! Encontrá a la ardilla 🐿️ y después llegá al escondite.",
-    time:40,
+    time:55,
     wallColor:"#6d597a",floorColor:"#eee0ff",goalEmoji:"🛏️",
     bgTop:"#eee0ff",bgBot:"#6d597a",
     fact:"Chappell se metió abajo de la cama con Ardi. Nadie los va a encontrar ahí. (Mentira, Chappell va a salir sola en 3 minutos porque necesita atención.)"
@@ -367,7 +377,7 @@ const levels=[
   {
     name:"Toda la Casa",emoji:"🐈🐈‍⬛",cat:"🐈🐈‍⬛",
     desc:"Los dos juntos. Pispo va adelante con cara de que no pasa nada y Chappell atrás corriendo como desquiciada. ¡Al balcón!",
-    time:50,
+    time:72,
     wallColor:"#4a6741",floorColor:"#e9ffe0",goalEmoji:"🚪",
     bgTop:"#e9ffe0",bgBot:"#4a6741",
     fact:"Misión completada. Pispo y Chappell evitaron al veterinario... por ahora. (Spoiler: las mamás ya reprogramaron el turno.)"
@@ -730,3 +740,4 @@ resize();showScreen(startScreen);draw();
 </script>
 </body>
 </html>
+```
