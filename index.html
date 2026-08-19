@@ -155,6 +155,39 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 .tap-final{margin-top:14px;font-size:.72rem;font-weight:900;color:var(--mint);animation:pulse 1s alternate infinite}
 .ending-box{cursor:pointer}
 
+
+/* ===== D-PAD V4: movimiento por casilleros, sin colisiones pegajosas ===== */
+.dpad-wrap{bottom:max(10px,env(safe-area-inset-bottom));gap:5px}
+.dpad{
+  display:grid;
+  grid-template-columns:58px 58px 58px;
+  grid-template-rows:52px 52px 52px;
+  gap:5px;
+  padding:7px;
+  border-radius:24px;
+  background:rgba(37,20,60,.82);
+  border:2px solid rgba(186,150,255,.42);
+  box-shadow:0 10px 28px rgba(0,0,0,.3);
+}
+.dpad-btn{
+  border:0;border-radius:15px;
+  background:linear-gradient(180deg,rgba(132,83,226,.96),rgba(75,41,133,.98));
+  color:#fff;font-size:1.35rem;font-weight:900;
+  box-shadow:0 4px 0 rgba(31,15,60,.8);
+  touch-action:none;
+}
+.dpad-btn:active,.dpad-btn.pressed{transform:translateY(3px);box-shadow:0 1px 0 rgba(31,15,60,.8);background:linear-gradient(180deg,#a77dff,#7446d6)}
+.dpad .up{grid-column:2;grid-row:1}
+.dpad .left{grid-column:1;grid-row:2}
+.dpad-center{grid-column:2;grid-row:2;display:flex;align-items:center;justify-content:center;border-radius:15px;background:rgba(255,255,255,.07);font-size:1.3rem}
+.dpad .right{grid-column:3;grid-row:2}
+.dpad .down{grid-column:2;grid-row:3}
+.control-help{font-size:.68rem;max-width:310px}
+@media(max-height:700px){
+  .dpad{grid-template-columns:50px 50px 50px;grid-template-rows:44px 44px 44px}
+  .dpad-btn{font-size:1.15rem}
+}
+
 </style>
 </head>
 <body>
@@ -187,15 +220,15 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
       <div id="levelText" style="font-size:1.3rem;font-weight:900">1</div>
     </div>
   </div>
-  <div class="controls">
-    <div id="joystick" class="joystick">
-      <span class="joy-arrow left">◀</span>
-      <span class="joy-arrow right">▶</span>
-      <span class="joy-arrow up">▲</span>
-      <span class="joy-arrow down">▼</span>
-      <div id="knob" class="knob"></div>
+  <div class="controls dpad-wrap">
+    <div class="dpad">
+      <button id="upBtn" class="dpad-btn up" aria-label="Arriba">▲</button>
+      <button id="leftBtn" class="dpad-btn left" aria-label="Izquierda">◀</button>
+      <div class="dpad-center">🐾</div>
+      <button id="rightBtn" class="dpad-btn right" aria-label="Derecha">▶</button>
+      <button id="downBtn" class="dpad-btn down" aria-label="Abajo">▼</button>
     </div>
-    <div class="control-help">Deslizá el dedo para recorrer la casa y llegar al escondite.</div>
+    <div class="control-help">Tocá las flechas para avanzar casillero por casillero. Ya no se puede quedar pegado a una pared.</div>
   </div>
 </section>
 
@@ -251,12 +284,12 @@ const levelEmoji=document.getElementById("levelEmoji"),levelChip=document.getEle
 const lvlName=document.getElementById("lvlName"),lvlDesc=document.getElementById("lvlDesc");
 const livesText=document.getElementById("livesText"),timerText=document.getElementById("timerText"),levelText=document.getElementById("levelText");
 const factText=document.getElementById("factText"),endingStats=document.getElementById("endingStats");
-const joystick=document.getElementById("joystick"),knob=document.getElementById("knob");
+const upBtn=document.getElementById("upBtn"),downBtn=document.getElementById("downBtn"),leftBtn=document.getElementById("leftBtn"),rightBtn=document.getElementById("rightBtn");
 const dialogueBox=document.getElementById("dialogueBox");
 
 let W=0,H=0,DPR=1,animId=null,lastTs=0;
 let currentLevel=0,lives=3,timeLeft=0,playing=false;
-let controlX=0,controlY=0,joyPtrId=null;
+let moveRepeat=null,moveDelay=null;
 let cat={x:0,y:0,tx:0,ty:0,emoji:"🐈"};
 let goalX=0,goalY=0;
 let ardiX=-1,ardiY=-1,ardiCollected=false;
@@ -264,19 +297,23 @@ let cellW=0,cellH=0,mazeOffX=0,mazeOffY=0;
 let particles=[];
 
 const mazes=[
-  // Level 1: La Cocina (11x11) — más laberíntico
+  // Level 1: La Cocina (15x15) — camino largo, con muchos giros
   [
-    "WWWWWWWWWWW",
-    "WS....W...W",
-    "WWW.W.W.W.W",
-    "W...W...W.W",
-    "W.WWWWW.W.W",
-    "W.....W.W.W",
-    "W.WWW.W.W.W",
-    "W.W...W...W",
-    "W.W.WWWWW.W",
-    "W........EW",
-    "WWWWWWWWWWW"
+    "WWWWWWWWWWWWWWW",
+    "WS..W.........W",
+    "WWW.WWWWW.WWW.W",
+    "W.W.....W.WEW.W",
+    "W.WWWWW.W.W.W.W",
+    "W.....W.W.W...W",
+    "W.W.WWW.W.WWWWW",
+    "W.W.W...W.W...W",
+    "W.W.W.WWW.W.W.W",
+    "W.W.W...W.W.W.W",
+    "W.W.WWW.W.W.W.W",
+    "W.W.W...W...W.W",
+    "W.WWW.WWWWWWW.W",
+    "W.............W",
+    "WWWWWWWWWWWWWWW"
   ],
   // Level 2: El Living (11x11)
   [
@@ -313,8 +350,8 @@ const mazes=[
 const levels=[
   {
     name:"La Cocina",emoji:"🐈",cat:"🐈",
-    desc:"Pispo escucha la palabra \"veterinario\" y decide actuar. La cocina tiene más vueltas de las que recordaba: guialo hasta el sillón antes de que lo atrapen.",
-    time:25,
+    desc:"Pispo escucha la palabra \"veterinario\" y activa el protocolo fuga. Esta vez no hay atajos: encontrá el camino hasta el sillón antes de que lo atrapen.",
+    time:32,
     wallColor:"#d4a373",floorColor:"#fefae0",goalEmoji:"🛋️",
     bgTop:"#fefae0",bgBot:"#d4a373",
     fact:"Pispo se escondió detrás del sillón. Técnica clásica de gato manipulador: hacerse invisible y aparecer solo cuando hay comida."
@@ -372,7 +409,11 @@ function calcMazeLayout(){
 
 function showScreen(t){[startScreen,gameScreen,endingScreen].forEach(e=>e.classList.remove("active"));t.classList.add("active")}
 function openModal(m){[levelModal,completeModal,gameOverModal].forEach(e=>e.classList.remove("active"));if(m)m.classList.add("active")}
-function resetJoy(){controlX=0;controlY=0;knob.style.transform="translate(-50%,-50%)";joyPtrId=null}
+function resetJoy(){
+  clearInterval(moveRepeat); clearTimeout(moveDelay);
+  moveRepeat=null; moveDelay=null;
+  document.querySelectorAll(".dpad-btn").forEach(b=>b.classList.remove("pressed"));
+}
 
 playBtn.addEventListener("click",()=>{currentLevel=0;lives=3;showScreen(gameScreen);showLevelIntro()});
 
@@ -416,31 +457,74 @@ function startLevel(){
   if(!animId)animId=requestAnimationFrame(loop);
 }
 
-// Joystick
-function updateJoy(cx,cy){
-  const rect=joystick.getBoundingClientRect();
-  const jcx=rect.left+rect.width/2,jcy=rect.top+rect.height/2;
-  let dx=cx-jcx,dy=cy-jcy;
-  const maxR=rect.width*.31,dist=Math.hypot(dx,dy);
-  if(dist>maxR){dx=dx/dist*maxR;dy=dy/dist*maxR}
-  controlX=Math.max(-1,Math.min(1,dx/maxR));
-  controlY=Math.max(-1,Math.min(1,dy/maxR));
+// D-pad: movement is grid-based. A wall simply rejects that step.
+// There is no continuous collision state, so the cat cannot get stuck.
+function checkSpecialTiles(){
+  if(ardiX>=0 && !ardiCollected && cat.x===ardiX && cat.y===ardiY){
+    ardiCollected=true;
+    burst(mazeOffX+(ardiX+.5)*cellW,mazeOffY+(ardiY+.5)*cellH,"✨",10);
+    try{navigator.vibrate([25,18,25])}catch(_){}
+  }
 
-  // Pequeña zona muerta para evitar micro-movimientos que hacían que
-  // el gato pareciera trabarse al rozar una pared.
-  if(Math.abs(controlX)<.12)controlX=0;
-  if(Math.abs(controlY)<.12)controlY=0;
-
-  knob.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;
+  if(cat.x===goalX && cat.y===goalY){
+    if(currentLevel===1 && !ardiCollected){
+      // Reaching the bed before Ardi does not finish the level.
+      return;
+    }
+    playing=false;
+    resetJoy();
+    completeLevel();
+  }
 }
-joystick.addEventListener("pointerdown",e=>{joyPtrId=e.pointerId;joystick.setPointerCapture(e.pointerId);updateJoy(e.clientX,e.clientY);e.preventDefault()});
-joystick.addEventListener("pointermove",e=>{if(e.pointerId!==joyPtrId)return;updateJoy(e.clientX,e.clientY);e.preventDefault()});
-function relJoy(e){if(joyPtrId!==null&&e&&e.pointerId!==joyPtrId)return;resetJoy()}
-joystick.addEventListener("pointerup",relJoy);
-joystick.addEventListener("pointercancel",relJoy);
-joystick.addEventListener("lostpointercapture",()=>resetJoy());
-window.addEventListener("keydown",e=>{if(e.key==="ArrowLeft")controlX=-1;if(e.key==="ArrowRight")controlX=1;if(e.key==="ArrowUp")controlY=-1;if(e.key==="ArrowDown")controlY=1});
-window.addEventListener("keyup",e=>{if(e.key==="ArrowLeft"||e.key==="ArrowRight")controlX=0;if(e.key==="ArrowUp"||e.key==="ArrowDown")controlY=0});
+
+function stepMove(dx,dy){
+  if(!playing)return;
+  const nx=cat.x+dx, ny=cat.y+dy;
+  if(isWall(nx,ny)){
+    try{navigator.vibrate(12)}catch(_){}
+    return;
+  }
+  cat.x=nx;
+  cat.y=ny;
+  checkSpecialTiles();
+}
+
+function bindPad(btn,dx,dy){
+  const press=e=>{
+    e.preventDefault();
+    resetJoy();
+    btn.classList.add("pressed");
+    stepMove(dx,dy);
+
+    // Brief delay before hold-to-repeat, so single taps stay precise.
+    moveDelay=setTimeout(()=>{
+      moveRepeat=setInterval(()=>stepMove(dx,dy),125);
+    },260);
+  };
+  const release=e=>{
+    if(e)e.preventDefault();
+    clearTimeout(moveDelay);clearInterval(moveRepeat);
+    moveDelay=null;moveRepeat=null;
+    btn.classList.remove("pressed");
+  };
+
+  btn.addEventListener("pointerdown",press);
+  btn.addEventListener("pointerup",release);
+  btn.addEventListener("pointercancel",release);
+  btn.addEventListener("pointerleave",release);
+}
+bindPad(leftBtn,-1,0);
+bindPad(rightBtn,1,0);
+bindPad(upBtn,0,-1);
+bindPad(downBtn,0,1);
+
+window.addEventListener("keydown",e=>{
+  if(e.repeat)return;
+  if(e.key==="ArrowLeft")stepMove(-1,0);
+  else if(e.key==="ArrowRight")stepMove(1,0);
+  else if(e.key==="ArrowUp")stepMove(0,-1);
+  else if(e.key==="ArrowDown")stepMove(0,1);
+});
 
 function isWall(col,row){
   const m=mazes[currentLevel];
@@ -448,28 +532,6 @@ function isWall(col,row){
   return m[row][col]==="W";
 }
 
-// Colisión más suave: el gato se trata como un círculo pequeño.
-// Así puede rozar una pared y seguir deslizándose por ella sin quedar enganchado.
-function hitsWall(x,y,radius=.20){
-  const minC=Math.floor(x-radius);
-  const maxC=Math.floor(x+radius);
-  const minR=Math.floor(y-radius);
-  const maxR=Math.floor(y+radius);
-
-  for(let r=minR;r<=maxR;r++){
-    for(let c=minC;c<=maxC;c++){
-      if(!isWall(c,r))continue;
-
-      const nearestX=Math.max(c,Math.min(x,c+1));
-      const nearestY=Math.max(r,Math.min(y,r+1));
-      const dx=x-nearestX;
-      const dy=y-nearestY;
-
-      if(dx*dx+dy*dy < radius*radius)return true;
-    }
-  }
-  return false;
-}
 
 function loop(ts){
   const dt=Math.min((ts-lastTs)/1000,.035);lastTs=ts;
@@ -480,59 +542,22 @@ function loop(ts){
 
 function update(dt){
   timeLeft-=dt;
-  if(timeLeft<=0){timeLeft=0;updateTimer();loseLife();return}
+  if(timeLeft<=0){
+    timeLeft=0;
+    updateTimer();
+    loseLife();
+    return;
+  }
   updateTimer();
 
-  const speed=currentLevel===0?4.35:4.5;
-  const dx=controlX*speed*dt;
-  const dy=controlY*speed*dt;
-
-  // Movimiento por ejes independientes:
-  // si choca horizontalmente, todavía puede seguir verticalmente, y viceversa.
-  // Esto evita que quede "pegado" en esquinas o paredes.
-  if(dx!==0){
-    const nx=cat.x+dx;
-    if(!hitsWall(nx,cat.y))cat.x=nx;
-  }
-
-  if(dy!==0){
-    const ny=cat.y+dy;
-    if(!hitsWall(cat.x,ny))cat.y=ny;
-  }
-
-  // Si queda apenas demasiado cerca de una pared, lo recentramos suavemente
-  // dentro de la celda transitable actual.
-  const cc=Math.floor(cat.x);
-  const rr=Math.floor(cat.y);
-  if(!isWall(cc,rr)){
-    const pad=.22;
-    cat.x=Math.max(cc+pad,Math.min(cc+1-pad,cat.x));
-    cat.y=Math.max(rr+pad,Math.min(rr+1-pad,cat.y));
-  }
-
-  // Clamp general
-  cat.x=Math.max(.22,Math.min(mazes[currentLevel][0].length-.22,cat.x));
-  cat.y=Math.max(.22,Math.min(mazes[currentLevel].length-.22,cat.y));
-
-  // Collect Ardi
-  if(ardiX>=0&&!ardiCollected&&Math.abs(cat.x-ardiX)<.6&&Math.abs(cat.y-ardiY)<.6){
-    ardiCollected=true;
-    burst(mazeOffX+(ardiX+.5)*cellW,mazeOffY+(ardiY+.5)*cellH,"✨",10);
-    try{navigator.vibrate([30,20,30])}catch(_){}
-  }
-
-  // Check goal
-  if(Math.abs(cat.x-goalX)<.6&&Math.abs(cat.y-goalY)<.6){
-    // Level 2 needs Ardi first
-    if(currentLevel===1&&!ardiCollected)return;
-    playing=false;resetJoy();
-    completeLevel();
-  }
-
-  // Particles
+  // Movement is handled directly by the D-pad, one legal tile at a time.
+  // Only particles need continuous animation here.
   for(let i=particles.length-1;i>=0;i--){
     const p=particles[i];
-    p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=50*dt;
+    p.life-=dt;
+    p.x+=p.vx*dt;
+    p.y+=p.vy*dt;
+    p.vy+=50*dt;
     if(p.life<=0)particles.splice(i,1);
   }
 }
