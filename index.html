@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2a1a3e">
+<title>Pispo & Chappell: Escape del Veterinario 🐈🐈‍⬛</title>
+<style>
+:root{
+  --bg1:#2a1a3e;--bg2:#1a0e2e;--purple:#7c4dff;--pink:#ff6fb5;
+  --gold:#ffd166;--mint:#8df0c8;--cream:#fff8e7;--warm:#fff0e0;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg2);color:var(--cream);font-family:Arial,Helvetica,sans-serif;touch-action:none}
+button{font:inherit;cursor:pointer}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+
+.screen{position:fixed;inset:0;z-index:20;display:none;overflow:auto;-webkit-overflow-scrolling:touch}
+.screen.active{display:flex}
+
+#startScreen{
+  flex-direction:column;justify-content:center;align-items:center;
+  padding:max(18px,env(safe-area-inset-top)) 18px max(22px,env(safe-area-inset-bottom));
+  background:radial-gradient(circle at 30% 20%,rgba(124,77,255,.3),transparent 30%),
+    radial-gradient(circle at 70% 80%,rgba(255,111,181,.2),transparent 25%),
+    linear-gradient(180deg,#2a1a3e,#1a0e2e);
+}
+.start-wrap{width:min(100%,480px);display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
+.hero-cats{font-size:clamp(5rem,22vw,8rem);line-height:1;filter:drop-shadow(0 12px 14px rgba(0,0,0,.3));animation:floaty 2.5s ease-in-out infinite}
+@keyframes floaty{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-8px) rotate(2deg)}}
+.title{font-size:clamp(1.4rem,6vw,2.4rem);font-weight:900;line-height:1.2}
+.title span{color:var(--gold)}
+.subtitle{font-size:.95rem;opacity:.9;line-height:1.5;max-width:360px}
+.play-btn{
+  margin-top:8px;min-width:220px;padding:17px 36px;border:0;border-radius:22px;
+  background:linear-gradient(180deg,#ffd348,#ffae00);color:#6a3800;font-weight:900;font-size:1.5rem;
+  text-transform:uppercase;box-shadow:0 7px 0 #c96e00,0 14px 28px rgba(0,0,0,.27);
+}
+.play-btn:active{transform:translateY(5px);box-shadow:0 2px 0 #c96e00}
+
+#gameScreen{display:none;pointer-events:none}
+#gameScreen.active{display:block}
+
+.hud{
+  position:fixed;z-index:8;top:0;left:0;right:0;
+  padding:max(11px,env(safe-area-inset-top)) 14px 0;
+  display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:start;pointer-events:none;
+}
+.hud-card{
+  min-width:80px;padding:8px 10px;border-radius:15px;
+  background:rgba(42,26,62,.85);border:1px solid rgba(124,77,255,.4);
+  box-shadow:0 8px 20px rgba(0,0,0,.2);backdrop-filter:blur(5px);
+}
+.hud-card.right{justify-self:end;text-align:center}
+.hud-label{font-size:.62rem;font-weight:900;letter-spacing:.5px;text-transform:uppercase;opacity:.9}
+#livesText{font-size:1.25rem;letter-spacing:2px;white-space:nowrap}
+.timer{text-align:center;text-shadow:0 3px 0 rgba(0,0,0,.25)}
+.timer .label{display:block;font-size:.72rem;font-weight:900}
+#timerText{font-size:2rem;font-weight:900;line-height:1}
+#timerText.danger{color:#ff6078;animation:pulse .55s infinite alternate}
+@keyframes pulse{from{transform:scale(1)}to{transform:scale(1.1)}}
+
+.controls{
+  position:fixed;z-index:12;left:0;right:0;
+  bottom:max(14px,env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:auto;
+}
+.joystick{
+  position:relative;width:130px;height:130px;border-radius:50%;
+  background:radial-gradient(circle at center,rgba(255,255,255,.07) 0 48%,transparent 49%),
+    linear-gradient(180deg,rgba(124,77,255,.7),rgba(60,30,100,.9));
+  border:3px solid rgba(180,140,255,.6);box-shadow:inset 0 0 25px rgba(255,255,255,.05),0 10px 28px rgba(0,0,0,.3);
+  touch-action:none;
+}
+.joy-arrow{position:absolute;color:rgba(200,180,255,.45);font-size:1.2rem;font-weight:900;pointer-events:none}
+.joy-arrow.left{left:8px;top:50%;transform:translateY(-50%)}
+.joy-arrow.right{right:8px;top:50%;transform:translateY(-50%)}
+.joy-arrow.up{top:5px;left:50%;transform:translateX(-50%)}
+.joy-arrow.down{bottom:5px;left:50%;transform:translateX(-50%)}
+.knob{
+  position:absolute;width:48px;height:48px;border-radius:50%;left:50%;top:50%;
+  transform:translate(-50%,-50%);background:linear-gradient(180deg,#fff,#e0d0f0);
+  border:2px solid #c0a8e0;box-shadow:0 6px 14px rgba(0,0,0,.3);pointer-events:none;
+}
+.control-help{max-width:280px;text-align:center;font-size:.7rem;line-height:1.25;opacity:.8;text-shadow:0 2px 4px rgba(0,0,0,.6)}
+
+.modal{
+  position:fixed;z-index:40;inset:0;display:none;align-items:center;justify-content:center;
+  padding:22px;background:rgba(20,10,35,.82);backdrop-filter:blur(8px);
+}
+.modal.active{display:flex}
+.modal-card{
+  width:min(100%,430px);padding:28px 22px;border-radius:28px;
+  background:linear-gradient(180deg,rgba(50,30,80,.96),rgba(30,15,55,.96));
+  border:2px solid rgba(180,140,255,.35);box-shadow:0 18px 55px rgba(0,0,0,.35);text-align:center;
+}
+.modal-emoji{font-size:4rem;margin-bottom:8px}
+.modal-card h2{font-size:1.4rem;margin-bottom:10px}
+.modal-card p{line-height:1.5;font-size:.92rem;opacity:.95}
+.level-chip{
+  display:inline-block;margin:8px 0 10px;padding:7px 14px;border-radius:999px;
+  background:rgba(255,255,255,.12);font-weight:900;color:var(--gold);font-size:.85rem;
+}
+.modal-btn{
+  margin-top:16px;padding:14px 24px;border:0;border-radius:16px;
+  background:linear-gradient(180deg,#ffd348,#ffad00);color:#6b3a00;font-weight:900;font-size:1rem;
+  box-shadow:0 5px 0 #c96e00;
+}
+.modal-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #c96e00}
+.fact{margin-top:12px;padding:14px;border-radius:16px;background:rgba(255,255,255,.08);font-size:.88rem!important;line-height:1.55}
+
+#endingScreen{
+  align-items:center;justify-content:center;flex-direction:column;padding:24px;text-align:center;
+  background:radial-gradient(circle at 50% 25%,rgba(124,77,255,.25),transparent 30%),
+    linear-gradient(180deg,#2a1a3e,#1a0e2e);
+}
+.ending-box{
+  width:min(100%,460px);padding:28px 22px;border-radius:28px;
+  background:rgba(40,22,65,.8);border:2px solid rgba(180,140,255,.35);
+  box-shadow:0 18px 55px rgba(0,0,0,.35);
+}
+.ending-big{font-size:4.5rem}
+.ending-box h1{margin:8px 0 10px;color:var(--gold);font-size:1.6rem}
+.dialogue{
+  margin-top:14px;padding:14px;border-radius:16px;background:rgba(255,255,255,.08);
+  min-height:80px;text-align:left;line-height:1.5;font-size:.95rem;
+}
+.dialogue .speaker{font-size:1.4rem;margin-right:6px}
+
+@media(max-height:700px){
+  .hero-cats{font-size:4.5rem}
+  .joystick{width:110px;height:110px}
+  .knob{width:42px;height:42px}
+  #timerText{font-size:1.6rem}
+}
+
+/* ===== Visual upgrade ===== */
+.hero-cats{display:flex;gap:22px;align-items:flex-end;font-size:initial}
+.cat-card{
+  position:relative;width:102px;height:102px;border-radius:48% 48% 45% 45%;
+  box-shadow:0 14px 26px rgba(0,0,0,.27);animation:floaty 2.5s ease-in-out infinite;
+}
+.cat-card.pispo{background:#d88731}
+.cat-card.chappell{background:#718196;animation-delay:.25s}
+.cat-card .ear{position:absolute;top:-15px;width:36px;height:40px;clip-path:polygon(50% 0,100% 100%,0 100%)}
+.cat-card.pispo .ear{background:#d88731}.cat-card.chappell .ear{background:#718196}
+.cat-card .ear.l{left:7px;transform:rotate(-8deg)}.cat-card .ear.r{right:7px;transform:rotate(8deg)}
+.cat-card .eye{position:absolute;top:37px;width:9px;height:12px;border-radius:50%;background:#17131c}
+.cat-card .eye.l{left:28px}.cat-card .eye.r{right:28px}
+.cat-card .nose{position:absolute;left:50%;top:57px;transform:translateX(-50%);width:10px;height:8px;border-radius:50%;background:#ef919d}
+.cat-card .muzzle{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);width:48px;height:33px;border-radius:50%;background:rgba(255,255,255,.72)}
+.cat-card b{position:absolute;left:50%;bottom:-14px;transform:translateX(-50%);padding:4px 9px;border-radius:999px;background:#fff;color:#4d2c68;font-size:.65rem}
+.cat-card.small{transform:scale(.72);animation:none;margin:-10px -4px}
+.ending-duo{display:flex;justify-content:center;gap:24px;margin-bottom:6px}
+.tap-final{margin-top:14px;font-size:.72rem;font-weight:900;color:var(--mint);animation:pulse 1s alternate infinite}
+.ending-box{cursor:pointer}
+
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<section id="startScreen" class="screen active">
+  <div class="start-wrap">
+    <div class="hero-cats">
+      <div class="cat-card pispo"><span class="ear l"></span><span class="ear r"></span><span class="eye l"></span><span class="eye r"></span><span class="nose"></span><span class="muzzle"></span><b>Pispo</b></div>
+      <div class="cat-card chappell"><span class="ear l"></span><span class="ear r"></span><span class="eye l"></span><span class="eye r"></span><span class="nose"></span><span class="muzzle"></span><b>Chappell</b></div>
+    </div>
+    <div class="title">PISPO & CHAPPELL:<br><span>ESCAPE DEL VETERINARIO</span></div>
+    <p class="subtitle">Pispo y Chappell se enteraron de que hoy tienen turno en el veterinario. Guialos por la casa hasta el escondite seguro.</p>
+    <button id="playBtn" class="play-btn">JUGAR</button>
+  </div>
+</section>
+
+<section id="gameScreen" class="screen">
+  <div class="hud">
+    <div class="hud-card">
+      <div class="hud-label">VIDAS</div>
+      <div id="livesText">🐟🐟🐟</div>
+    </div>
+    <div class="timer">
+      <span class="label">TIEMPO</span>
+      <div id="timerText">00:30</div>
+    </div>
+    <div class="hud-card right">
+      <div class="hud-label">NIVEL</div>
+      <div id="levelText" style="font-size:1.3rem;font-weight:900">1</div>
+    </div>
+  </div>
+  <div class="controls">
+    <div id="joystick" class="joystick">
+      <span class="joy-arrow left">◀</span>
+      <span class="joy-arrow right">▶</span>
+      <span class="joy-arrow up">▲</span>
+      <span class="joy-arrow down">▼</span>
+      <div id="knob" class="knob"></div>
+    </div>
+    <div class="control-help">Deslizá el dedo para recorrer la casa y llegar al escondite.</div>
+  </div>
+</section>
+
+<div id="levelModal" class="modal">
+  <div class="modal-card">
+    <div id="levelEmoji" class="modal-emoji">🐈</div>
+    <div id="levelChip" class="level-chip">NIVEL 1</div>
+    <h2 id="lvlName"></h2>
+    <p id="lvlDesc"></p>
+    <button id="levelGoBtn" class="modal-btn">¡VAMOS!</button>
+  </div>
+</div>
+
+<div id="completeModal" class="modal">
+  <div class="modal-card">
+    <div class="modal-emoji">🎉</div>
+    <h2>¡NIVEL COMPLETADO!</h2>
+    <p id="factText" class="fact"></p>
+    <button id="nextBtn" class="modal-btn">SIGUIENTE</button>
+  </div>
+</div>
+
+<div id="gameOverModal" class="modal">
+  <div class="modal-card">
+    <div class="modal-emoji">😿</div>
+    <h2>¡LOS ATRAPARON!</h2>
+    <p>Las mamás los encontraron. Al veterinario igual nomás.</p>
+    <button id="retryBtn" class="modal-btn">REINTENTAR</button>
+  </div>
+</div>
+
+<section id="endingScreen" class="screen">
+  <div class="ending-box">
+    <div class="ending-duo">
+      <div class="cat-card pispo small"><span class="ear l"></span><span class="ear r"></span><span class="eye l"></span><span class="eye r"></span><span class="nose"></span><span class="muzzle"></span></div>
+      <div class="cat-card chappell small"><span class="ear l"></span><span class="ear r"></span><span class="eye l"></span><span class="eye r"></span><span class="nose"></span><span class="muzzle"></span></div>
+    </div>
+    <h1>Misión ¿Completada?</h1>
+    <p id="endingStats"></p>
+    <div id="dialogueBox" class="dialogue"></div>
+    <div class="tap-final">TOCÁ PARA SEGUIR ›</div>
+  </div>
+</section>
+
+<script>
+"use strict";
+const canvas=document.getElementById("game"),ctx=canvas.getContext("2d");
+const startScreen=document.getElementById("startScreen"),gameScreen=document.getElementById("gameScreen"),endingScreen=document.getElementById("endingScreen");
+const playBtn=document.getElementById("playBtn"),levelModal=document.getElementById("levelModal"),levelGoBtn=document.getElementById("levelGoBtn");
+const completeModal=document.getElementById("completeModal"),nextBtn=document.getElementById("nextBtn");
+const gameOverModal=document.getElementById("gameOverModal"),retryBtn=document.getElementById("retryBtn");
+const levelEmoji=document.getElementById("levelEmoji"),levelChip=document.getElementById("levelChip");
+const lvlName=document.getElementById("lvlName"),lvlDesc=document.getElementById("lvlDesc");
+const livesText=document.getElementById("livesText"),timerText=document.getElementById("timerText"),levelText=document.getElementById("levelText");
+const factText=document.getElementById("factText"),endingStats=document.getElementById("endingStats");
+const joystick=document.getElementById("joystick"),knob=document.getElementById("knob");
+const dialogueBox=document.getElementById("dialogueBox");
+
+let W=0,H=0,DPR=1,animId=null,lastTs=0;
+let currentLevel=0,lives=3,timeLeft=0,playing=false;
+let controlX=0,controlY=0,joyPtrId=null;
+let cat={x:0,y:0,tx:0,ty:0,emoji:"🐈"};
+let goalX=0,goalY=0;
+let ardiX=-1,ardiY=-1,ardiCollected=false;
+let cellW=0,cellH=0,mazeOffX=0,mazeOffY=0;
+let particles=[];
+
+const mazes=[
+  // Level 1: La Cocina (9x9)
+  [
+    "WWWWWWWWW",
+    "WS..W...W",
+    "W.W.W.W.W",
+    "W.W...W.W",
+    "W.WWW.W.W",
+    "W.....W.W",
+    "W.WWWWW.W",
+    "W......EW",
+    "WWWWWWWWW"
+  ],
+  // Level 2: El Living (11x11)
+  [
+    "WWWWWWWWWWW",
+    "WS..W.....W",
+    "W.W.W.WWW.W",
+    "W.W.W...W.W",
+    "W.W.WWW.W.W",
+    "W.W.A...W.W",
+    "W.WWWWW.W.W",
+    "W.......W.W",
+    "W.WWW.WWW.W",
+    "W...W....EW",
+    "WWWWWWWWWWW"
+  ],
+  // Level 3: Toda la Casa (13x13)
+  [
+    "WWWWWWWWWWWWW",
+    "WS..W.......W",
+    "W.W.W.WWWWW.W",
+    "W.W.W.W...W.W",
+    "W.W.W.W.W.W.W",
+    "W.W...W.W...W",
+    "W.WWWWW.WWW.W",
+    "W.......W...W",
+    "W.WWW.WWW.W.W",
+    "W.W...W...W.W",
+    "W.W.WWW.WWW.W",
+    "W..........EW",
+    "WWWWWWWWWWWWW"
+  ]
+];
+
+const levels=[
+  {
+    name:"La Cocina",emoji:"🐈",cat:"🐈",
+    desc:"Pispo escucha la palabra \"veterinario\" y decide actuar. Guialo hasta el sillón antes de que lo atrapen.",
+    time:30,
+    wallColor:"#d4a373",floorColor:"#fefae0",goalEmoji:"🛋️",
+    bgTop:"#fefae0",bgBot:"#d4a373",
+    fact:"Pispo se escondió detrás del sillón. Técnica clásica de gato manipulador: hacerse invisible y aparecer solo cuando hay comida."
+  },
+  {
+    name:"El Living",emoji:"🐈‍⬛",cat:"🐈‍⬛",
+    desc:"Chappell sale corriendo como loca. ¡Y no se va sin Ardi! Encontrá a la ardilla 🐿️ y después llegá al escondite.",
+    time:40,
+    wallColor:"#6d597a",floorColor:"#eee0ff",goalEmoji:"🛏️",
+    bgTop:"#eee0ff",bgBot:"#6d597a",
+    fact:"Chappell se metió abajo de la cama con Ardi. Nadie los va a encontrar ahí. (Mentira, Chappell va a salir sola en 3 minutos porque necesita atención.)"
+  },
+  {
+    name:"Toda la Casa",emoji:"🐈🐈‍⬛",cat:"🐈🐈‍⬛",
+    desc:"Los dos juntos. Pispo va adelante con cara de que no pasa nada y Chappell atrás corriendo como desquiciada. ¡Al balcón!",
+    time:50,
+    wallColor:"#4a6741",floorColor:"#e9ffe0",goalEmoji:"🚪",
+    bgTop:"#e9ffe0",bgBot:"#4a6741",
+    fact:"Misión completada. Pispo y Chappell evitaron al veterinario... por ahora. (Spoiler: las mamás ya reprogramaron el turno.)"
+  }
+];
+
+const dialogueLines=[
+  {speaker:"🐈",text:"¿Estamos a salvo?"},
+  {speaker:"🐈‍⬛",text:"Creo que sí. ¿Dónde está Ardi?"},
+  {speaker:"🐈",text:"La tenés en la boca, Chappell."},
+  {speaker:"🐈‍⬛",text:"Ah sí. ¿Y las mamás?"},
+  {speaker:"🐈",text:"Nos están mirando con esa cara de 'los amo pero van a ir igual'."},
+  {speaker:"🐈‍⬛",text:"..."},
+  {speaker:"🐈",text:"Corré."},
+  {speaker:"🐈‍⬛",text:"¡¡¡MIAU!!!"},
+];
+let dialogueIdx=0;
+
+function resize(){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  W=window.innerWidth;H=window.innerHeight;
+  canvas.width=Math.floor(W*DPR);canvas.height=Math.floor(H*DPR);
+  canvas.style.width=W+"px";canvas.style.height=H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  calcMazeLayout();
+  draw();
+}
+window.addEventListener("resize",resize);
+
+function calcMazeLayout(){
+  const m=mazes[currentLevel];
+  const rows=m.length,cols=m[0].length;
+  const maxW=W*.94,maxH=H*.52;
+  cellW=Math.floor(Math.min(maxW/cols,maxH/rows));
+  cellH=cellW;
+  mazeOffX=Math.floor((W-cols*cellW)/2);
+  mazeOffY=Math.floor(Math.max(H*.12,88));
+}
+
+function showScreen(t){[startScreen,gameScreen,endingScreen].forEach(e=>e.classList.remove("active"));t.classList.add("active")}
+function openModal(m){[levelModal,completeModal,gameOverModal].forEach(e=>e.classList.remove("active"));if(m)m.classList.add("active")}
+function resetJoy(){controlX=0;controlY=0;knob.style.transform="translate(-50%,-50%)";joyPtrId=null}
+
+playBtn.addEventListener("click",()=>{currentLevel=0;lives=3;showScreen(gameScreen);showLevelIntro()});
+
+function showLevelIntro(){
+  const lv=levels[currentLevel];
+  playing=false;resetJoy();
+  levelEmoji.textContent=lv.emoji;
+  levelChip.textContent=`NIVEL ${currentLevel+1}`;
+  lvlName.textContent=lv.name;
+  lvlDesc.textContent=lv.desc;
+  levelText.textContent=currentLevel+1;
+  updateLives();
+  calcMazeLayout();
+  openModal(levelModal);draw();
+}
+
+levelGoBtn.addEventListener("click",()=>{openModal(null);startLevel()});
+
+function startLevel(){
+  const lv=levels[currentLevel];
+  const m=mazes[currentLevel];
+  timeLeft=lv.time;
+  cat.emoji=lv.cat;
+  ardiCollected=false;ardiX=-1;ardiY=-1;
+  particles=[];
+
+  // Find S, E, A positions
+  for(let r=0;r<m.length;r++){
+    for(let c=0;c<m[r].length;c++){
+      if(m[r][c]==="S"){cat.tx=c;cat.ty=r;cat.x=c;cat.y=r}
+      if(m[r][c]==="E"){goalX=c;goalY=r}
+      if(m[r][c]==="A"){ardiX=c;ardiY=r}
+    }
+  }
+
+  resetJoy();
+  timerText.classList.remove("danger");
+  updateTimer();updateLives();
+  levelText.textContent=currentLevel+1;
+  playing=true;lastTs=performance.now();
+  if(!animId)animId=requestAnimationFrame(loop);
+}
+
+// Joystick
+function updateJoy(cx,cy){
+  const rect=joystick.getBoundingClientRect();
+  const jcx=rect.left+rect.width/2,jcy=rect.top+rect.height/2;
+  let dx=cx-jcx,dy=cy-jcy;
+  const maxR=rect.width*.31,dist=Math.hypot(dx,dy);
+  if(dist>maxR){dx=dx/dist*maxR;dy=dy/dist*maxR}
+  controlX=Math.max(-1,Math.min(1,dx/maxR));
+  controlY=Math.max(-1,Math.min(1,dy/maxR));
+  knob.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;
+}
+joystick.addEventListener("pointerdown",e=>{joyPtrId=e.pointerId;joystick.setPointerCapture(e.pointerId);updateJoy(e.clientX,e.clientY);e.preventDefault()});
+joystick.addEventListener("pointermove",e=>{if(e.pointerId!==joyPtrId)return;updateJoy(e.clientX,e.clientY);e.preventDefault()});
+function relJoy(e){if(joyPtrId!==null&&e&&e.pointerId!==joyPtrId)return;resetJoy()}
+joystick.addEventListener("pointerup",relJoy);
+joystick.addEventListener("pointercancel",relJoy);
+joystick.addEventListener("lostpointercapture",()=>resetJoy());
+window.addEventListener("keydown",e=>{if(e.key==="ArrowLeft")controlX=-1;if(e.key==="ArrowRight")controlX=1;if(e.key==="ArrowUp")controlY=-1;if(e.key==="ArrowDown")controlY=1});
+window.addEventListener("keyup",e=>{if(e.key==="ArrowLeft"||e.key==="ArrowRight")controlX=0;if(e.key==="ArrowUp"||e.key==="ArrowDown")controlY=0});
+
+function isWall(col,row){
+  const m=mazes[currentLevel];
+  if(row<0||row>=m.length||col<0||col>=m[0].length)return true;
+  return m[row][col]==="W";
+}
+
+function loop(ts){
+  const dt=Math.min((ts-lastTs)/1000,.035);lastTs=ts;
+  if(playing)update(dt);
+  draw();
+  animId=requestAnimationFrame(loop);
+}
+
+function update(dt){
+  timeLeft-=dt;
+  if(timeLeft<=0){timeLeft=0;updateTimer();loseLife();return}
+  updateTimer();
+
+  const speed=4.5;
+  let nx=cat.x+controlX*speed*dt;
+  let ny=cat.y+controlY*speed*dt;
+
+  // Collision: check target cell for X movement
+  const checkCol=controlX>0?Math.floor(nx+.35):Math.floor(nx-.35+1);
+  const curRow=Math.floor(cat.y);
+  if(!isWall(checkCol<0?0:checkCol,curRow))cat.x=nx;
+
+  // Collision: check target cell for Y movement
+  const checkRow=controlY>0?Math.floor(ny+.35):Math.floor(ny-.35+1);
+  const curCol=Math.floor(cat.x);
+  if(!isWall(curCol,checkRow<0?0:checkRow))cat.y=ny;
+
+  // Clamp
+  cat.x=Math.max(.4,Math.min(mazes[currentLevel][0].length-.6,cat.x));
+  cat.y=Math.max(.4,Math.min(mazes[currentLevel].length-.6,cat.y));
+
+  // Collect Ardi
+  if(ardiX>=0&&!ardiCollected&&Math.abs(cat.x-ardiX)<.6&&Math.abs(cat.y-ardiY)<.6){
+    ardiCollected=true;
+    burst(mazeOffX+(ardiX+.5)*cellW,mazeOffY+(ardiY+.5)*cellH,"✨",10);
+    try{navigator.vibrate([30,20,30])}catch(_){}
+  }
+
+  // Check goal
+  if(Math.abs(cat.x-goalX)<.6&&Math.abs(cat.y-goalY)<.6){
+    // Level 2 needs Ardi first
+    if(currentLevel===1&&!ardiCollected)return;
+    playing=false;resetJoy();
+    completeLevel();
+  }
+
+  // Particles
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=50*dt;
+    if(p.life<=0)particles.splice(i,1);
+  }
+}
+
+function updateTimer(){
+  const s=Math.max(0,Math.ceil(timeLeft));
+  timerText.textContent=`00:${String(s).padStart(2,"0")}`;
+  timerText.classList.toggle("danger",s<=5&&playing);
+}
+function updateLives(){livesText.textContent="🐟".repeat(Math.max(0,lives))+"💀".repeat(Math.max(0,3-lives))}
+
+function loseLife(){
+  playing=false;lives--;updateLives();resetJoy();
+  try{navigator.vibrate([60,40,90])}catch(_){}
+  setTimeout(()=>{
+    if(lives<=0){openModal(gameOverModal)}
+    else{startLevel()}
+  },500);
+}
+
+function completeLevel(){
+  timerText.classList.remove("danger");
+  factText.textContent=levels[currentLevel].fact;
+  nextBtn.textContent=currentLevel<2?"SIGUIENTE NIVEL":"VER FINAL";
+  setTimeout(()=>openModal(completeModal),300);
+}
+
+nextBtn.addEventListener("click",()=>{
+  openModal(null);
+  if(currentLevel<2){currentLevel++;showLevelIntro()}
+  else showEnding();
+});
+
+retryBtn.addEventListener("click",()=>{openModal(null);currentLevel=0;lives=3;showLevelIntro()});
+
+function showEnding(){
+  playing=false;showScreen(endingScreen);
+  endingStats.innerHTML="Pispo y Chappell: <strong>0</strong> visitas al veterinario exitosamente evitadas.<br>Racha actual: <strong>0</strong>. 🐈🐈‍⬛💛";
+  dialogueIdx=0;showDialogue();
+}
+
+function showDialogue(){
+  const line=dialogueLines[dialogueIdx];
+  if(!line){
+    dialogueBox.innerHTML='<span class="speaker">💛</span><span>Fin. Las mamás los aman igual. Y van a ir al veterinario igual. 🐈🐈‍⬛</span>';
+    dialogueBox.innerHTML='<span class="speaker">💛</span><span>Fin. Las mamás los aman igual. Y van a ir al veterinario igual.</span>';
+    return;
+  }
+  dialogueBox.innerHTML=`<span class="speaker">${line.speaker}</span><span>${line.text}</span>`;
+}
+endingScreen.addEventListener("click",()=>{
+  if(dialogueIdx<dialogueLines.length){dialogueIdx++;showDialogue()}
+});
+
+function burst(x,y,emoji,n){
+  for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-.5)*140,vy:-40-Math.random()*100,life:.5+Math.random()*.3,emoji});
+}
+
+/* ========== DRAW ========== */
+function draw(){
+  if(!W||!H)return;
+  const lv=levels[currentLevel]||levels[0];
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,lv.bgTop);g.addColorStop(1,lv.bgBot);
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+
+  drawMaze(lv);
+  drawParticles();
+}
+
+function drawMaze(lv){
+  const m=mazes[currentLevel];
+  const rows=m.length,cols=m[0].length;
+
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const x=mazeOffX+c*cellW,y=mazeOffY+r*cellH;
+      const ch=m[r][c];
+
+      if(ch==="W"){
+        ctx.fillStyle=lv.wallColor;
+        ctx.fillRect(x,y,cellW,cellH);
+        // Wall shading
+        ctx.fillStyle="rgba(0,0,0,.15)";
+        ctx.fillRect(x,y+cellH-3,cellW,3);
+        ctx.fillStyle="rgba(255,255,255,.1)";
+        ctx.fillRect(x,y,cellW,2);
+      }else{
+        ctx.fillStyle=lv.floorColor;
+        ctx.fillRect(x,y,cellW,cellH);
+        // Grid lines
+        ctx.strokeStyle="rgba(0,0,0,.06)";
+        ctx.strokeRect(x,y,cellW,cellH);
+      }
+    }
+  }
+
+  // Goal
+  ctx.font=`${cellW*.7}px Apple Color Emoji,Segoe UI Emoji,sans-serif`;
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText(lv.goalEmoji,mazeOffX+(goalX+.5)*cellW,mazeOffY+(goalY+.5)*cellH);
+
+  // Ardi (level 2 only)
+  if(ardiX>=0&&!ardiCollected){
+    ctx.font=`${cellW*.6}px Apple Color Emoji,Segoe UI Emoji,sans-serif`;
+    const ardiPx=mazeOffX+(ardiX+.5)*cellW;
+    const ardiPy=mazeOffY+(ardiY+.5)*cellH+Math.sin(performance.now()/400)*3;
+    ctx.fillText("🐿️",ardiPx,ardiPy);
+  }
+
+  // Level 2: show hint if Ardi not collected
+  if(currentLevel===1&&!ardiCollected){
+    ctx.fillStyle="rgba(0,0,0,.5)";
+    ctx.font="bold 12px Arial";
+    ctx.fillText("¡Buscá a Ardi 🐿️ primero!",W/2,mazeOffY-10);
+  }
+
+  // Cat(s) drawn in canvas so they look the same on iPhone and desktop
+  const catPx=mazeOffX+(cat.x+.5)*cellW;
+  const catPy=mazeOffY+(cat.y+.5)*cellH;
+  if(currentLevel===0){
+    drawCat(catPx,catPy,"#d88731","#fff1dd",1);
+  }else if(currentLevel===1){
+    drawCat(catPx,catPy,"#718196","#eef3f8",1);
+  }else{
+    drawCat(catPx-cellW*.12,catPy,"#d88731","#fff1dd",.74);
+    drawCat(catPx+cellW*.12,catPy,"#718196","#eef3f8",.74);
+  }
+}
+
+function drawCat(x,y,body,belly,scale){
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.scale(scale,scale);
+
+  const s=cellW;
+  ctx.fillStyle=body;
+  ctx.beginPath();ctx.ellipse(0,0,s*.24,s*.22,0,0,Math.PI*2);ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(-s*.17,-s*.11);ctx.lineTo(-s*.25,-s*.30);ctx.lineTo(-s*.05,-s*.20);ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(s*.17,-s*.11);ctx.lineTo(s*.25,-s*.30);ctx.lineTo(s*.05,-s*.20);ctx.fill();
+
+  ctx.fillStyle=belly;
+  ctx.beginPath();ctx.ellipse(0,s*.07,s*.12,s*.10,0,0,Math.PI*2);ctx.fill();
+
+  ctx.fillStyle="#16131a";
+  ctx.beginPath();ctx.arc(-s*.075,-s*.05,s*.023,0,Math.PI*2);ctx.arc(s*.075,-s*.05,s*.023,0,Math.PI*2);ctx.fill();
+
+  ctx.fillStyle="#ee8c97";
+  ctx.beginPath();ctx.arc(0,s*.01,s*.025,0,Math.PI*2);ctx.fill();
+
+  ctx.restore();
+}
+
+function drawParticles(){
+  particles.forEach(p=>{
+    ctx.save();
+    ctx.globalAlpha=Math.max(0,p.life*2);
+    ctx.font="18px Apple Color Emoji,Segoe UI Emoji,sans-serif";
+    ctx.textAlign="center";
+    ctx.fillText(p.emoji,p.x,p.y);
+    ctx.restore();
+  });
+}
+
+resize();showScreen(startScreen);draw();
+(function idle(){if(!animId)draw();requestAnimationFrame(idle)})();
+</script>
+</body>
+</html>
